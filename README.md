@@ -38,7 +38,7 @@ To post a value:
 
     stathat.PostValue("ws0 load average", "something@stathat.com", 0.372)
 
-Read the API docs on [godoc.org](http://github.com/simonz05/stathat/).
+Read the API docs on [godoc.org](http://godoc.org/github.com/simonz05/stathat/).
 
 Contact us
 ----------
