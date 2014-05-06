@@ -15,7 +15,6 @@
 package stathat
 
 import (
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -25,7 +24,7 @@ import (
 	"time"
 )
 
-const hostname = "api.stathat.com"
+const apiURL = "http://api.stathat.com/ez"
 
 type statKind int
 
@@ -141,10 +140,6 @@ func (sr *statReport) timeString() string {
 	return strconv.FormatInt(sr.Timestamp, 10)
 }
 
-func (sr *statReport) url() string {
-	return fmt.Sprintf("http://%s/ez", hostname)
-}
-
 // PostCountOne posts a count of 1 to a stat using DefaultReporter.
 func PostCountOne(statName, key string) error {
 	return DefaultReporter.PostCountOne(statName, key)
@@ -221,18 +216,18 @@ func (r *Reporter) processReports() {
 		}
 
 		if Verbose {
-			log.Printf("posting stat to stathat: %s, %v", sr.url(), sr.values())
+			log.Printf("posting stat to stathat: %s, %v", apiURL, sr.values())
 		}
 
 		if testingEnv {
 			if Verbose {
 				log.Printf("in test mode, putting stat on testPostChannel")
 			}
-			testPostChannel <- &testPost{sr.url(), sr.values()}
+			testPostChannel <- &testPost{apiURL, sr.values()}
 			continue
 		}
 
-		resp, err := r.client.PostForm(sr.url(), sr.values())
+		resp, err := r.client.PostForm(apiURL, sr.values())
 		if err != nil {
 			log.Printf("error posting stat to stathat: %s", err)
 			continue
