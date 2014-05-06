@@ -10,50 +10,33 @@ Installation
 
 Use `go get`:
 
-    go get github.com/stathat/go
+    go get github.com/simonz05/stathat
 
 That's it.
 
 Import it like this:
 
     import (
-            "github.com/stathat/go"
+            "github.com/simonz05/stathat"
     )
 
 Usage
 -----
 
-The easiest way to use the package is with the EZ API functions.  You can add stats
-directly in your code by just adding a call with a new stat name.  Once StatHat
-receives the call, a new stat will be created for you.
+You can add stats directly in your code by just adding a call with a new stat
+name.  Once StatHat receives the call, a new stat will be created for you.
 
 To post a count of 1 to a stat:
 
-    stathat.PostEZCountOne("messages sent - female to male", "something@stathat.com")
+    stathat.PostCountOne("messages sent - female to male", "something@stathat.com")
 
 To specify the count:
 
-    stathat.PostEZCount("messages sent - male to male", "something@stathat.com", 37)
+    stathat.PostCount("messages sent - male to male", "something@stathat.com", 37)
 
 To post a value:
 
-    stathat.PostEZValue("ws0 load average", "something@stathat.com", 0.372)
-
-There are also functions for the classic API.  The drawback to the classic API is
-that you need to create the stats using the web interface and copy the keys it
-gives you into your code.
-
-To post a count of 1 to a stat using the classic API:
-
-    stathat.PostCountOne("statkey", "userkey")
-
-To specify the count:
-
-    stathat.PostCount("statkey", "userkey", 37)
-
-To post a value:
-
-    stathat.PostValue("statkey", "userkey", 0.372)
+    stathat.PostValue("ws0 load average", "something@stathat.com", 0.372)
 
 Contact us
 ----------

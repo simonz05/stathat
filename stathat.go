@@ -1,4 +1,5 @@
 // Copyright (C) 2012 Numerotron Inc.
+// Modifications Copyright (C) 2014 Simon Zimmermann
 // Use of this source code is governed by an MIT-style license
 // that can be found in the LICENSE file.
 
@@ -34,41 +35,12 @@ const (
 	kvalue
 )
 
-func (sk statKind) classicPath() string {
-	switch sk {
-	case kcounter:
-		return "/c"
-	case kvalue:
-		return "/v"
-	}
-	return ""
-}
-
-type apiKind int
-
-const (
-	_               = iota
-	classic apiKind = iota
-	ez
-)
-
-func (ak apiKind) path(sk statKind) string {
-	switch ak {
-	case ez:
-		return "/ez"
-	case classic:
-		return sk.classicPath()
-	}
-	return ""
-}
-
 type statReport struct {
 	StatKey   string
 	UserKey   string
 	Value     float64
 	Timestamp int64
 	statType  statKind
-	apiType   apiKind
 }
 
 // Reporter is a StatHat client that can report stat values/counts to the servers.
@@ -115,70 +87,31 @@ func setTesting() {
 	testPostChannel = make(chan *testPost)
 }
 
-func newEZStatCount(statName, ezkey string, count int) *statReport {
+func newStatCount(statName, key string, count int) *statReport {
 	return &statReport{StatKey: statName,
-		UserKey:  ezkey,
+		UserKey:  key,
 		Value:    float64(count),
-		statType: kcounter,
-		apiType:  ez}
+		statType: kcounter}
 }
 
-func newEZStatValue(statName, ezkey string, value float64) *statReport {
+func newStatValue(statName, key string, value float64) *statReport {
 	return &statReport{StatKey: statName,
-		UserKey:  ezkey,
+		UserKey:  key,
 		Value:    value,
-		statType: kvalue,
-		apiType:  ez}
-}
-
-func newClassicStatCount(statKey, userKey string, count int) *statReport {
-	return &statReport{StatKey: statKey,
-		UserKey:  userKey,
-		Value:    float64(count),
-		statType: kcounter,
-		apiType:  classic}
-}
-
-func newClassicStatValue(statKey, userKey string, value float64) *statReport {
-	return &statReport{StatKey: statKey,
-		UserKey:  userKey,
-		Value:    value,
-		statType: kvalue,
-		apiType:  classic}
+		statType: kvalue}
 }
 
 func (sr *statReport) values() url.Values {
-	switch sr.apiType {
-	case ez:
-		return sr.ezValues()
-	case classic:
-		return sr.classicValues()
-	}
-
-	return nil
-}
-
-func (sr *statReport) ezValues() url.Values {
 	switch sr.statType {
 	case kcounter:
-		return sr.ezCounterValues()
+		return sr.counterValues()
 	case kvalue:
-		return sr.ezValueValues()
+		return sr.valueValues()
 	}
 	return nil
 }
 
-func (sr *statReport) classicValues() url.Values {
-	switch sr.statType {
-	case kcounter:
-		return sr.classicCounterValues()
-	case kvalue:
-		return sr.classicValueValues()
-	}
-	return nil
-}
-
-func (sr *statReport) ezCommonValues() url.Values {
+func (sr *statReport) commonValues() url.Values {
 	result := make(url.Values)
 	result.Set("stat", sr.StatKey)
 	result.Set("ezkey", sr.UserKey)
@@ -188,36 +121,14 @@ func (sr *statReport) ezCommonValues() url.Values {
 	return result
 }
 
-func (sr *statReport) classicCommonValues() url.Values {
-	result := make(url.Values)
-	result.Set("key", sr.StatKey)
-	result.Set("ukey", sr.UserKey)
-	if sr.Timestamp > 0 {
-		result.Set("t", sr.timeString())
-	}
-	return result
-}
-
-func (sr *statReport) ezCounterValues() url.Values {
-	result := sr.ezCommonValues()
+func (sr *statReport) counterValues() url.Values {
+	result := sr.commonValues()
 	result.Set("count", sr.valueString())
 	return result
 }
 
-func (sr *statReport) ezValueValues() url.Values {
-	result := sr.ezCommonValues()
-	result.Set("value", sr.valueString())
-	return result
-}
-
-func (sr *statReport) classicCounterValues() url.Values {
-	result := sr.classicCommonValues()
-	result.Set("count", sr.valueString())
-	return result
-}
-
-func (sr *statReport) classicValueValues() url.Values {
-	result := sr.classicCommonValues()
+func (sr *statReport) valueValues() url.Values {
+	result := sr.commonValues()
 	result.Set("value", sr.valueString())
 	return result
 }
@@ -230,132 +141,69 @@ func (sr *statReport) timeString() string {
 	return strconv.FormatInt(sr.Timestamp, 10)
 }
 
-func (sr *statReport) path() string {
-	return sr.apiType.path(sr.statType)
-}
-
 func (sr *statReport) url() string {
-	return fmt.Sprintf("http://%s%s", hostname, sr.path())
+	return fmt.Sprintf("http://%s/ez", hostname)
 }
 
-// Using the classic API, posts a count to a stat using DefaultReporter.
-func PostCount(statKey, userKey string, count int) error {
-	return DefaultReporter.PostCount(statKey, userKey, count)
+// PostCountOne posts a count of 1 to a stat using DefaultReporter.
+func PostCountOne(statName, key string) error {
+	return DefaultReporter.PostCountOne(statName, key)
 }
 
-// Using the classic API, posts a count to a stat using DefaultReporter at a specific
-// time.
-func PostCountTime(statKey, userKey string, count int, timestamp int64) error {
-	return DefaultReporter.PostCountTime(statKey, userKey, count, timestamp)
+// PostCount posts a count to a stat using DefaultReporter.
+func PostCount(statName, key string, count int) error {
+	return DefaultReporter.PostCount(statName, key, count)
 }
 
-// Using the classic API, posts a count of 1 to a stat using DefaultReporter.
-func PostCountOne(statKey, userKey string) error {
-	return DefaultReporter.PostCountOne(statKey, userKey)
+// PostCountTime posts a count to a stat at a specific time using DefaultReporter.
+func PostCountTime(statName, key string, count int, timestamp int64) error {
+	return DefaultReporter.PostCountTime(statName, key, count, timestamp)
 }
 
-// Using the classic API, posts a value to a stat using DefaultReporter.
-func PostValue(statKey, userKey string, value float64) error {
-	return DefaultReporter.PostValue(statKey, userKey, value)
+// PostValue posts a value to a stat using DefaultReporter.
+func PostValue(statName, key string, value float64) error {
+	return DefaultReporter.PostValue(statName, key, value)
 }
 
-// Using the classic API, posts a value to a stat at a specific time using DefaultReporter.
-func PostValueTime(statKey, userKey string, value float64, timestamp int64) error {
-	return DefaultReporter.PostValueTime(statKey, userKey, value, timestamp)
+// PostValueTime posts a value to a stat at a specific time using DefaultReporter.
+func PostValueTime(statName, key string, value float64, timestamp int64) error {
+	return DefaultReporter.PostValueTime(statName, key, value, timestamp)
 }
 
-// Using the EZ API, posts a count of 1 to a stat using DefaultReporter.
-func PostEZCountOne(statName, ezkey string) error {
-	return DefaultReporter.PostEZCountOne(statName, ezkey)
-}
-
-// Using the EZ API, posts a count to a stat using DefaultReporter.
-func PostEZCount(statName, ezkey string, count int) error {
-	return DefaultReporter.PostEZCount(statName, ezkey, count)
-}
-
-// Using the EZ API, posts a count to a stat at a specific time using DefaultReporter.
-func PostEZCountTime(statName, ezkey string, count int, timestamp int64) error {
-	return DefaultReporter.PostEZCountTime(statName, ezkey, count, timestamp)
-}
-
-// Using the EZ API, posts a value to a stat using DefaultReporter.
-func PostEZValue(statName, ezkey string, value float64) error {
-	return DefaultReporter.PostEZValue(statName, ezkey, value)
-}
-
-// Using the EZ API, posts a value to a stat at a specific time using DefaultReporter.
-func PostEZValueTime(statName, ezkey string, value float64, timestamp int64) error {
-	return DefaultReporter.PostEZValueTime(statName, ezkey, value, timestamp)
-}
-
-// Wait for all stats to be sent, or until timeout. Useful for simple command-
-// line apps to defer a call to this in main()
+// WaitUntilFinished wait for all stats to be sent, or until timeout. Useful
+// for simple command- line apps to defer a call to this in main()
 func WaitUntilFinished(timeout time.Duration) bool {
 	return DefaultReporter.WaitUntilFinished(timeout)
 }
 
-// Using the classic API, posts a count to a stat.
-func (r *Reporter) PostCount(statKey, userKey string, count int) error {
-	r.reports <- newClassicStatCount(statKey, userKey, count)
+// PostCountOne posts a count of 1 to a stat.
+func (r *Reporter) PostCountOne(statName, key string) error {
+	return r.PostCount(statName, key, 1)
+}
+
+// PostCount posts a count to a stat.
+func (r *Reporter) PostCount(statName, key string, count int) error {
+	r.reports <- newStatCount(statName, key, count)
 	return nil
 }
 
-// Using the classic API, posts a count to a stat at a specific time.
-func (r *Reporter) PostCountTime(statKey, userKey string, count int, timestamp int64) error {
-	x := newClassicStatCount(statKey, userKey, count)
+// PostCountTime posts a count to a stat at a specific time.
+func (r *Reporter) PostCountTime(statName, key string, count int, timestamp int64) error {
+	x := newStatCount(statName, key, count)
 	x.Timestamp = timestamp
 	r.reports <- x
 	return nil
 }
 
-// Using the classic API, posts a count of 1 to a stat.
-func (r *Reporter) PostCountOne(statKey, userKey string) error {
-	return r.PostCount(statKey, userKey, 1)
-}
-
-// Using the classic API, posts a value to a stat.
-func (r *Reporter) PostValue(statKey, userKey string, value float64) error {
-	r.reports <- newClassicStatValue(statKey, userKey, value)
+// PostValue posts a value to a stat.
+func (r *Reporter) PostValue(statName, key string, value float64) error {
+	r.reports <- newStatValue(statName, key, value)
 	return nil
 }
 
-// Using the classic API, posts a value to a stat at a specific time.
-func (r *Reporter) PostValueTime(statKey, userKey string, value float64, timestamp int64) error {
-	x := newClassicStatValue(statKey, userKey, value)
-	x.Timestamp = timestamp
-	r.reports <- x
-	return nil
-}
-
-// Using the EZ API, posts a count of 1 to a stat.
-func (r *Reporter) PostEZCountOne(statName, ezkey string) error {
-	return r.PostEZCount(statName, ezkey, 1)
-}
-
-// Using the EZ API, posts a count to a stat.
-func (r *Reporter) PostEZCount(statName, ezkey string, count int) error {
-	r.reports <- newEZStatCount(statName, ezkey, count)
-	return nil
-}
-
-// Using the EZ API, posts a count to a stat at a specific time.
-func (r *Reporter) PostEZCountTime(statName, ezkey string, count int, timestamp int64) error {
-	x := newEZStatCount(statName, ezkey, count)
-	x.Timestamp = timestamp
-	r.reports <- x
-	return nil
-}
-
-// Using the EZ API, posts a value to a stat.
-func (r *Reporter) PostEZValue(statName, ezkey string, value float64) error {
-	r.reports <- newEZStatValue(statName, ezkey, value)
-	return nil
-}
-
-// Using the EZ API, posts a value to a stat at a specific time.
-func (r *Reporter) PostEZValueTime(statName, ezkey string, value float64, timestamp int64) error {
-	x := newEZStatValue(statName, ezkey, value)
+// PostValueTime posts a value to a stat at a specific time.
+func (r *Reporter) PostValueTime(statName, key string, value float64, timestamp int64) error {
+	x := newStatValue(statName, key, value)
 	x.Timestamp = timestamp
 	r.reports <- x
 	return nil
